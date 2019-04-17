@@ -1,0 +1,35 @@
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: http-lb
+  annotations:
+    service.beta.kubernetes.io/do-loadbalancer-enable-proxy-protocol: "true"
+spec:
+  type: LoadBalancer
+  selector:
+    app: test-app
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8080
+
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: test-app
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: test-app
+    spec:
+      containers:
+      - name: test-app
+        image: njs0/test-app:latest
+        ports:
+        - containerPort: 8080
+          protocol: TCP
