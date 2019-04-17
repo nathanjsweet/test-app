@@ -20,7 +20,8 @@ var (
 	prefix    = []byte("PROXY ")
 	prefixLen = len(prefix)
 
-	ErrInvalidUpstream = errors.New("upstream connection address not trusted for PROXY information")
+	ErrInvalidUpstream       = errors.New("upstream connection address not trusted for PROXY information")
+	ErrProxyProtocolExpected = errors.New("proxy protocol not found")
 )
 
 // SourceChecker can be used to decide whether to trust the PROXY info or pass
@@ -49,6 +50,7 @@ type Listener struct {
 	Listener           net.Listener
 	ProxyHeaderTimeout time.Duration
 	SourceCheck        SourceChecker
+	Strict             bool
 }
 
 // Conn is used to wrap and underlying connection which
@@ -62,6 +64,7 @@ type Conn struct {
 	useConnAddr        bool
 	once               sync.Once
 	proxyHeaderTimeout time.Duration
+	strict             bool
 }
 
 // Accept waits for and returns the next connection to the listener.
@@ -83,6 +86,7 @@ func (p *Listener) Accept() (net.Conn, error) {
 	}
 	newConn := NewConn(conn, p.ProxyHeaderTimeout)
 	newConn.useConnAddr = useConnAddr
+	newConn.strict = p.Strict
 	return newConn, nil
 }
 
@@ -193,6 +197,9 @@ func (p *Conn) checkPrefix() error {
 
 		// Check for a prefix mis-match, quit early
 		if !bytes.Equal(inp, prefix[:i]) {
+			if p.strict {
+				return ErrProxyProtocolExpected
+			}
 			return nil
 		}
 	}
